@@ -22,27 +22,17 @@ module cpu_tb;
     .i_io_sw(sw), .i_io_btn(btn)
   );
 
-  integer k;
+  integer k, seen_vld;
   initial begin
-    // Reset
-    rstn = 0;
-    repeat (4) @(posedge clk);
-    rstn = 1;
-
-    // Run N cycles, watch o_insn_vld and PC
-    int seen_vld = 0;
+    seen_vld = 0;
+    rstn = 0; repeat (4) @(posedge clk); rstn = 1;
     for (k = 0; k < 2000; k = k + 1) begin
       @(posedge clk);
       if (insn_vld) seen_vld = 1;
-      if (k % 100 == 0) $display("t=%0t ns PC=%08x insn_vld=%0d", $time, pc_dbg, insn_vld);
+      if (k % 100 == 0) $display("t=%0t PC=%08x insn_vld=%0d", $time, pc_dbg, insn_vld);
     end
-
-    if (!seen_vld) begin
-      $display("FAIL: o_insn_vld never asserted");
-      $finish;
-    end
-
-    $display("PASS: TB completed, o_insn_vld seen at least once");
+    if (!seen_vld) $display("FAIL: o_insn_vld never asserted");
+    else           $display("PASS: o_insn_vld asserted");
     $finish;
   end
 endmodule
