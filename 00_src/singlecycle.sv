@@ -54,6 +54,7 @@ module singlecycle (
     logic [1:0] opb_sel, wb_sel;
     logic [3:0] alu_op;
     logic mem_wren;
+    logic br_un;
     control u_ctrl(
         .i_rst(rst), .i_instr(imem_rdata),
         .pc_sel(pc_sel), .rd_wren(rd_wren), .br_un(br_un), .opa_sel(opa_sel), .opb_sel(opb_sel),
@@ -96,12 +97,10 @@ module singlecycle (
         .instr(imem_rdata), .imm_i(imm_i), .imm_s(imm_s), .imm_b(imm_b), .imm_u(imm_u), .imm_j(imm_j)
     );
 
-    // Branch comparator (stub wiring)
+    // Branch comparator (stub data path for now)
     logic br_equal, br_less;
-    logic br_un;
-    assign br_un = 1'b0;
     brc u_brc (
-        .a(32'd0), .b(32'd0), .i_br_un(br_un), .o_br_equal(br_equal), .o_br_less(br_less)
+        .i_rs1_data(rf_r1), .i_rs2_data(rf_r2), .i_br_un(br_un), .o_br_equal(br_equal), .o_br_less(br_less)
     );
 
     // ALU + operand muxes (placeholder wiring)
