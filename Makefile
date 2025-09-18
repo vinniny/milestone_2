@@ -1,9 +1,9 @@
-TOP      ?= cpu_tb
-RTL_DIR  := rtl
-TB_DIR   := tb
-SIM_DIR  := sim
-BUILD    := build
-SOURCES  := $(RTL_DIR)/regfile.sv $(RTL_DIR)/alu.sv $(RTL_DIR)/pc.sv $(RTL_DIR)/imem.sv $(RTL_DIR)/dmem.sv $(RTL_DIR)/cpu_top.sv $(TB_DIR)/cpu_tb.sv
+TOP      ?= 01_bench/cpu_tb.sv
+RTL_DIR  := 00_src
+TB_DIR   := 01_bench
+SIM_DIR  := 10_sim
+BUILD    := 10_sim
+SOURCES  := $(wildcard $(RTL_DIR)/*.sv) $(TOP)
 
 IVERILOG ?= iverilog
 VVP      ?= vvp
@@ -20,11 +20,11 @@ $(SIM_DIR):
 	@mkdir -p $(SIM_DIR)
 
 lint:
-	$(VERILATOR) --lint-only -Wall -Wno-UNUSED -Wno-ASSIGNDLY -Wno-STMTDLY $(SOURCES)
+	$(VERILATOR) --lint-only -Wall -Wno-UNUSED -Wno-ASSIGNDLY -Wno-STMTDLY --top-module cpu_tb $(SOURCES)
 
-sim run: $(BUILD) $(SIM_DIR) $(SOURCES)
-	$(IVERILOG) -g2012 -Wall -o $(BUILD)/$(TOP).vvp $(SOURCES)
-	$(VVP) $(BUILD)/$(TOP).vvp | tee $(SIM_DIR)/run.log
+sim run: $(BUILD) $(SOURCES)
+	$(IVERILOG) -g2012 -Wall -o $(BUILD)/simv $(SOURCES)
+	$(VVP) $(BUILD)/simv | tee $(SIM_DIR)/run.log
 
 build: sim
 

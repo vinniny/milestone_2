@@ -1,10 +1,11 @@
-sim/
+10_sim/
 obj_dir/
 *.vcd
 *.fst
 *.log
 *.hex
 build/
+02_test/dump/
 sim/
 *.vcd
 *.fst
