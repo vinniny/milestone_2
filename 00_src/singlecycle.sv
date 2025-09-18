@@ -72,10 +72,12 @@ module singlecycle (
         .instr(imem_rdata), .imm_i(imm_i), .imm_s(imm_s), .imm_b(imm_b), .imm_u(imm_u), .imm_j(imm_j)
     );
 
-    // Branch comparator (unused)
-    logic br_take;
+    // Branch comparator (stub wiring)
+    logic br_equal, br_less;
+    logic br_un;
+    assign br_un = 1'b0;
     brc u_brc (
-        .rs1(32'd0), .rs2(32'd0), .funct3(3'd0), .take(br_take)
+        .a(32'd0), .b(32'd0), .i_br_un(br_un), .o_br_equal(br_equal), .o_br_less(br_less)
     );
 
     // ALU (unused)
