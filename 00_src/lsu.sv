@@ -36,12 +36,14 @@ module lsu (
     logic [31:0] ram [0:2047];
 
     // Address decoding helpers
-    logic in_ram, in_ledr, in_ledg, in_sw, in_btn;
+    logic in_ram, in_ledr, in_ledg, in_sw, in_btn, in_hex, in_lcd;
     assign in_ram  = (i_addr[15:13] == 3'b001) && (i_addr[12] == 1'b0); // 0x2000-0x3FFF
     assign in_ledr = (i_addr[15:4]  == 12'h700); // 0x7000-0x700F
     assign in_ledg = (i_addr[15:4]  == 12'h701); // 0x7010-0x701F
-    // seven-seg 0x7020-0x7027: 8 bytes -> ignore for now (stub)
-    // lcd      0x7030-0x703F: stub
+    // seven-seg 0x7020-0x7027: accept writes, ignore reads
+    assign in_hex  = (i_addr[15:3]  == 13'h0E04); // 0x7020..0x7027
+    // lcd      0x7030-0x703F: accept writes, ignore reads
+    assign in_lcd  = (i_addr[15:4]  == 12'h703);
     assign in_sw   = (i_addr[15:4]  == 12'h780); // 0x7800-0x780F
     assign in_btn  = (i_addr[15:4]  == 12'h781); // 0x7810-0x781F
 
@@ -66,6 +68,16 @@ module lsu (
                 o_io_ledr <= i_wdata;
             end else if (in_ledg) begin
                 o_io_ledg <= i_wdata;
+            end else if (in_hex) begin
+                // Accept writes; map lower 7 bits to hex0 by default (safe stub)
+                o_io_hex0 <= i_wdata[6:0];
+                o_io_hex1 <= i_wdata[14:8];
+                o_io_hex2 <= i_wdata[22:16];
+                o_io_hex3 <= i_wdata[30:24];
+                // hex4..7 remain as previous (could extend mapping later)
+            end else if (in_lcd) begin
+                // Accept writes to LCD regs (stub latch)
+                o_io_lcd <= i_wdata;
             end else begin
                 // Seven-seg and LCD stubs: accept writes, no effect (could latch in future)
                 /* verilator lint_off UNUSED */
@@ -93,4 +105,3 @@ module lsu (
     end
 
 endmodule
-
