@@ -23,12 +23,15 @@ module cpu_tb;
   // Use a clocked counter for reset release and stop condition.
   integer cycles = 0;
   logic   seen_vld = 1'b0;
+  logic   seen_ledr, seen_ledg;
 
   // Initialize simple regs only (no @, no repeat)
   initial begin
-    rstn     = 0;
-    cycles   = 0;
-    seen_vld = 1'b0;
+    rstn      = 0;
+    cycles    = 0;
+    seen_vld  = 1'b0;
+    seen_ledr = 1'b0;
+    seen_ledg = 1'b0;
   end
 
   // Single clocked process controls everything
@@ -42,10 +45,22 @@ module cpu_tb;
     if (insn_vld) seen_vld <= 1;
     if (cycles % 100 == 0) $display("t=%0t PC=%08x insn_vld=%0d", $time, pc_dbg, insn_vld);
 
+    // Observe LED writes from mem.dump
+    if (!seen_ledr && ledr == 32'h00000001) begin
+      seen_ledr <= 1'b1;
+      $display("CHECK: RED LEDs latched 0x%08x at t=%0t", ledr, $time);
+    end
+    if (!seen_ledg && ledg == 32'h00000002) begin
+      seen_ledg <= 1'b1;
+      $display("CHECK: GREEN LEDs latched 0x%08x at t=%0t", ledg, $time);
+    end
+
     // Finish after N cycles
     if (cycles == 2000) begin
-      if (!seen_vld) $display("FAIL: o_insn_vld never asserted");
-      else           $display("PASS: o_insn_vld asserted");
+      if (!seen_vld)           $display("FAIL: o_insn_vld never asserted");
+      else if (!seen_ledr)     $display("FAIL: RED LEDs (0x7000) never observed as 0x00000001");
+      else if (!seen_ledg)     $display("FAIL: GREEN LEDs (0x7010) never observed as 0x00000002");
+      else                     $display("PASS: LED checks and insn_vld OK");
       $finish;
     end
   end
