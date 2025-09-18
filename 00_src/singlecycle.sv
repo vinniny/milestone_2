@@ -55,25 +55,29 @@ module singlecycle (
     logic [3:0] alu_op;
     logic mem_wren;
     logic br_un;
+    // New control interface
+    logic mem_rden, pc_src_branch, pc_src_jal, pc_src_jalr;
+    logic [2:0] imm_sel;
     control u_ctrl(
-        .i_rst(rst), .i_instr(imem_rdata),
-        .pc_sel(pc_sel), .rd_wren(rd_wren), .br_un(br_un), .opa_sel(opa_sel), .opb_sel(opb_sel),
-        .alu_op(alu_op), .mem_wren(mem_wren), .wb_sel(wb_sel), .o_insn_vld(o_insn_vld)
+        .instr(imem_rdata),
+        .alu_op(alu_op),
+        .reg_we(rd_wren), .mem_we(mem_wren), .mem_re(mem_rden),
+        .imm_sel(imm_sel),
+        .pc_src_branch(pc_src_branch), .pc_src_jal(pc_src_jal), .pc_src_jalr(pc_src_jalr),
+        .opa_sel(opa_sel), .opb_sel(opb_sel), .br_un(br_un), .wb_sel(wb_sel),
+        .o_insn_vld(o_insn_vld), .alu_src_b_is_imm()
     );
 
-    // For now, compute only pc_next mux options we have
+    // Compute next PC via control selections
     logic [31:0] br_target, jal_target, jalr_target;
-    assign br_target  = pc_curr;   // placeholder until immgen used
-    assign jal_target = pc_curr;   // placeholder
-    assign jalr_target= pc_curr;   // placeholder
+    assign br_target  = pc_curr + imm;
+    assign jal_target = pc_curr + imm;
+    assign jalr_target= (rf_r1 + imm) & 32'hFFFF_FFFE;
     always_comb begin
-        unique case (pc_sel)
-            2'b00: pc_next = pc_plus4;
-            2'b01: pc_next = br_target;
-            2'b10: pc_next = jal_target;
-            2'b11: pc_next = jalr_target;
-            default: pc_next = pc_plus4;
-        endcase
+        pc_next = pc_plus4;
+        if (pc_src_branch) pc_next = br_target;
+        if (pc_src_jal)    pc_next = jal_target;
+        if (pc_src_jalr)   pc_next = jalr_target;
     end
 
     // Expose instruction fetch trace
@@ -84,17 +88,17 @@ module singlecycle (
     end
 
     // Stub instances to match requested structure
-    // Register file (unused here)
+    // Register file
     logic [31:0] rf_r1, rf_r2;
     regfile u_regfile (
-        .clk(i_clk), .we(1'b0), .rs1(5'd0), .rs2(5'd0), .rd(5'd0), .wdata(32'd0),
+        .clk(i_clk), .we(rd_wren), .rs1(imem_rdata[19:15]), .rs2(imem_rdata[24:20]), .rd(imem_rdata[11:7]), .wdata(wb_data),
         .rdata1(rf_r1), .rdata2(rf_r2)
     );
 
-    // Immediate generator (stub usage: select I-immediate by default)
+    // Immediate generator
     logic [31:0] imm;
     immgen u_immgen (
-        .instr(imem_rdata), .imm_sel(3'd0), .imm(imm)
+        .instr(imem_rdata), .imm_sel(imm_sel), .imm(imm)
     );
 
     // Branch comparator (stub data path for now)
@@ -110,9 +114,9 @@ module singlecycle (
     assign alu_b = (opb_sel==2'b00) ? rf_r2 : (opb_sel==2'b01 ? imm : 32'd4);
     alu u_alu (.a(alu_a), .b(alu_b), .op(alu_op), .y(alu_y), .zero(alu_zero));
 
-    // Load/Store Unit (memory-mapped IO + RAM). Tie address/data to ALU results for now.
+    // Load/Store Unit (memory-mapped IO + RAM)
     assign lsu_we    = mem_wren;
-    assign lsu_re    = 1'b0; // enable when LOAD decoding connects
+    assign lsu_re    = mem_rden;
     assign lsu_addr  = alu_y;
     assign lsu_wdata = rf_r2;
 
