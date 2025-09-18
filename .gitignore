@@ -1,0 +1,7 @@
+sim/
+*.vcd
+*.fst
+*.log
+*.out
+*.hex
+build/
