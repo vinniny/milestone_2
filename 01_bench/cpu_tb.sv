@@ -20,7 +20,7 @@ module cpu_tb;
     .i_io_sw(sw), .i_io_btn(btn)
   );
 
-  // Verilator-friendly: no timing control inside initial
+  // Verilator-friendly: no timing controls inside initial blocks
   // Use a clocked counter for reset release and stop condition.
   integer cycles = 0;
   integer seen_vld = 0;
