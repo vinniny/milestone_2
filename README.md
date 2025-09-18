@@ -62,4 +62,4 @@ CI & Guards
 - Workflow: `.github/workflows/ci.yml` (verilog‑ci)
   - Steps: install tools, forbidden‑ops guard, lint (Verilator), run (Icarus)
 - Forbidden‑ops guard: `10_sim/check_forbidden.sh` (blocks `for`/`generate` in `00_src/`)
-# milestone_2
+
