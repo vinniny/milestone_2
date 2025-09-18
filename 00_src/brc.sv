@@ -1,26 +1,24 @@
 `timescale 1ns/1ps
-// Branch comparator without '<' using subtract and XOR-reduction
-module brc (
-    input  logic [31:0] a,
-    input  logic [31:0] b,
-    input  logic        i_br_un,      // 1: unsigned compare, 0: signed
-    output logic        o_br_equal,
-    output logic        o_br_less
+
+module brc(
+  input  logic [31:0] i_rs1_data,
+  input  logic [31:0] i_rs2_data,
+  input  logic        i_br_un,     // 1=signed compare, 0=unsigned compare
+  output logic        o_br_less,
+  output logic        o_br_equal
 );
-    // Equality
-    assign o_br_equal = ~(|(a ^ b));
+  // Equality: ~| (a ^ b)
+  assign o_br_equal = ~(|(i_rs1_data ^ i_rs2_data));
 
-    // a - b via a + ~b + 1
-    logic [32:0] diff;
-    assign diff = {1'b0,a} + {1'b0,~b} + 33'd1;
+  // Compute a - b using the shared adder trick (a + ~b + 1)
+  logic [31:0] sum;
+  logic        cout, ovf;
+  add32 u_sub(.a(i_rs1_data), .b(~i_rs2_data), .cin(1'b1), .sum(sum), .cout(cout), .ovf(ovf));
 
-    // Signed less: sign of (a-b) when signs equal; when signs differ, sign of a
-    logic signed_less;
-    assign signed_less = (a[31] ^ b[31]) ? a[31] : diff[31];
+  // Signed less: N xor V = sum[31] ^ ovf
+  // Unsigned less: ~Cout
+  wire less_s  = sum[31] ^ ovf;
+  wire less_u  = ~cout;
 
-    // Unsigned less via borrow (carry out == 0 indicates a<b)
-    logic unsigned_less;
-    assign unsigned_less = ~diff[32];
-
-    assign o_br_less = i_br_un ? unsigned_less : signed_less;
+  assign o_br_less = i_br_un ? less_s : less_u;
 endmodule
