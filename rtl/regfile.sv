@@ -1,3 +1,4 @@
+`timescale 1ns/1ps
 // Simple 32x32 register file (x0 hardwired to 0)
 module regfile (
     input  logic        clk,
@@ -22,4 +23,3 @@ module regfile (
         end
     end
 endmodule
-

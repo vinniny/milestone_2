@@ -1,3 +1,4 @@
+`timescale 1ns/1ps
 // Minimal ALU supporting ADD, SUB, AND, OR, XOR
 module alu (
     input  logic [31:0] a,
@@ -16,4 +17,3 @@ module alu (
         endcase
     end
 endmodule
-
