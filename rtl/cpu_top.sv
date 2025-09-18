@@ -13,6 +13,26 @@ module cpu_top (
     output logic [31:0] dmem_wdata,
     input  logic [31:0] dmem_rdata
 );
-    // Stub
-endmodule
+    // Minimal: PC increments by 4; expose IF via display
+    logic [31:0] pc_curr, pc_next;
 
+    // Next PC is +4 always
+    assign pc_next  = pc_curr + 32'd4;
+    assign imem_addr = pc_curr;
+
+    // DMem default idle
+    assign dmem_we   = 1'b0;
+    assign dmem_re   = 1'b0;
+    assign dmem_addr = 32'd0;
+    assign dmem_wdata= 32'd0;
+
+    // PC register
+    pc u_pc(.clk(clk), .rst(rst), .pc_next(pc_next), .pc_curr(pc_curr));
+
+    // Trace
+    always_ff @(posedge clk) begin
+        if (!rst) begin
+            $display("IF PC=%08x INSTR=%08x", pc_curr, imem_rdata);
+        end
+    end
+endmodule

@@ -8,6 +8,13 @@ module dmem (
     input  logic [31:0] wdata,
     output logic [31:0] rdata
 );
-    // Stub
-endmodule
+    logic [31:0] mem [0:255]; // 1KB (256 words)
 
+    always_ff @(posedge clk) begin
+        if (we) mem[addr[9:2]] <= wdata;
+    end
+
+    always_comb begin
+        rdata = re ? mem[addr[9:2]] : 32'd0;
+    end
+endmodule
