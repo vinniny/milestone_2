@@ -1,32 +1,35 @@
-TOP      ?= 01_bench/cpu_tb.sv
-RTL_DIR  := 00_src
-TB_DIR   := 01_bench
-SIM_DIR  := 10_sim
-BUILD    := 10_sim
-SOURCES  := $(wildcard $(RTL_DIR)/*.sv) $(TOP)
+SIM ?= icarus
+TOP ?= 01_bench/cpu_tb.sv
+RTL := $(wildcard 00_src/*.sv) $(wildcard 00_src/*.v)
+TB  := $(TOP)
+BUILD := 10_sim
+BIN   := $(BUILD)/simv
 
-IVERILOG ?= iverilog
-VVP      ?= vvp
-VERILATOR?= verilator
-
-.PHONY: all lint sim clean run build
-
-all: sim
+.PHONY: all run build clean lint
+all: run
 
 $(BUILD):
 	@mkdir -p $(BUILD)
 
-$(SIM_DIR):
-	@mkdir -p $(SIM_DIR)
+build: $(BUILD)
+ifeq ($(strip $(SIM)),verilator)
+	@echo "==> Building with Verilator"
+	verilator -Wall --cc --exe --build -o sim_main $(TB) $(RTL)
+	cp obj_dir/sim_main $(BIN)
+else
+	@echo "==> Building with Icarus (SIM=$(SIM))"
+	iverilog -g2012 -Wall -o $(BIN) $(RTL) $(TB)
+endif
+
+run: build
+ifeq ($(strip $(SIM)),verilator)
+	$(BIN)
+else
+	vvp $(BIN)
+endif
 
 lint:
-	$(VERILATOR) --lint-only -Wall -Wno-UNUSED -Wno-ASSIGNDLY -Wno-STMTDLY --top-module cpu_tb $(SOURCES)
-
-sim run: $(BUILD) $(SOURCES)
-	$(IVERILOG) -g2012 -Wall -o $(BUILD)/simv $(SOURCES)
-	$(VVP) $(BUILD)/simv | tee $(SIM_DIR)/run.log
-
-build: sim
+	verilator --lint-only -Wall -Wno-UNUSED -Wno-ASSIGNDLY -Wno-STMTDLY --top-module cpu_tb $(RTL) $(TB)
 
 clean:
-	rm -rf $(BUILD) $(SIM_DIR) obj_dir *.vcd *.fst *.log
+	rm -rf $(BUILD) obj_dir *.vcd *.fst *.log
