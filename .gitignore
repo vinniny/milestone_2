@@ -7,6 +7,7 @@ obj_dir/
 *.hex
 build/
 02_test/dump/
+!02_test/dump/mem.dump
 sim/
 *.vcd
 *.fst
