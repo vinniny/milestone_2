@@ -70,16 +70,22 @@ module singlecycle (
         .o_insn_vld(o_insn_vld), .alu_src_b_is_imm(unused_alu_src_imm)
     );
 
-    // Compute next PC via control selections
+    // Local detects guarding control mismatches
+    logic jal_detect, jalr_detect, branch_detect;
+    assign jal_detect    = (imem_rdata[6:0] == 7'b1101111);
+    assign jalr_detect   = (imem_rdata[6:0] == 7'b1100111);
+    assign branch_detect = (imem_rdata[6:0] == 7'b1100011);
+
+    // Compute next PC via control selections OR local detects
     logic [31:0] br_target, jal_target, jalr_target;
     assign br_target  = pc_curr + imm;
     assign jal_target = pc_curr + imm;
     assign jalr_target= (rf_r1 + imm) & 32'hFFFF_FFFE;
     always_comb begin
         pc_next = pc_plus4;
-        if (pc_src_branch) pc_next = br_target;
-        if (pc_src_jal)    pc_next = jal_target;
-        if (pc_src_jalr)   pc_next = jalr_target;
+        if (pc_src_branch && branch_detect) pc_next = br_target;
+        if (pc_src_jal  || jal_detect)      pc_next = jal_target;
+        if (pc_src_jalr || jalr_detect)     pc_next = jalr_target;
     end
 
     // Expose instruction fetch trace
@@ -159,7 +165,7 @@ module singlecycle (
     end
 
     // JAL trace (optional)
-    always @(posedge i_clk) if (i_rst_n && imem_rdata[6:0]==7'b1101111)
-        $display("JAL @PC=%08x imm=%08x pc_src_jal=%0d", o_pc_debug, imm, pc_src_jal);
+    always @(posedge i_clk) if (i_rst_n && jal_detect)
+        $display("JAL @PC=%08x imm=%08x ctrl=%0d local=%0d", o_pc_debug, imm, pc_src_jal, jal_detect);
 
 endmodule
