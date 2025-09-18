@@ -26,16 +26,40 @@ module cpu_tb;
     );
 
     // Stimulus
+    integer vld_count;
+    integer i;
     initial begin
         i_rst_n = 0;
-        repeat (5) @(posedge i_clk);
-        i_rst_n = 1;
-        int vld_count = 0;
-        for (int i = 0; i < 2000; i++) begin
-            @(posedge i_clk);
-            if ((i % 100) == 0) $display("TB: cycle=%0d pc=%08x vld=%0d", i, o_pc_debug, o_insn_vld);
-            if (o_insn_vld) vld_count++;
+        vld_count = 0;
+        i = 0;
+    end
+
+    always @(posedge i_clk) begin
+        if (!i_rst_n) begin
+            i_rst_n <= 1'b1; // deassert after first posedge
+        end else begin
+            // periodic print handled in separate initial block
+            if (o_insn_vld) vld_count <= vld_count + 1;
+            i <= i + 1;
+            if (i == 2000) begin
+                // finish handled in separate block
+            end
         end
+    end
+
+    // Periodic prints and finish checks in time-domain initial block
+    initial begin
+        wait(i_rst_n == 1'b1);
+        forever begin
+            repeat (100) @(posedge i_clk);
+            $display("TB: cycle=%0d pc=%08x vld=%0d", i, o_pc_debug, o_insn_vld);
+            if (i >= 2000) begin
+                if (vld_count == 0) $display("FAIL: o_insn_vld never asserted");
+                else $display("PASS: o_insn_vld asserted %0d times", vld_count);
+                $finish;
+            end
+        end
+    end
         if (vld_count == 0) begin
             $display("FAIL: o_insn_vld never asserted");
             $finish;
