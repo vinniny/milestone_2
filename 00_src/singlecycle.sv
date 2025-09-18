@@ -58,6 +58,8 @@ module singlecycle (
     // New control interface
     logic mem_rden, pc_src_branch, pc_src_jal, pc_src_jalr;
     logic [2:0] imm_sel;
+    // Dummy sink for optional control output
+    logic unused_alu_src_imm;
     control u_ctrl(
         .instr(imem_rdata),
         .alu_op(alu_op),
@@ -65,7 +67,7 @@ module singlecycle (
         .imm_sel(imm_sel),
         .pc_src_branch(pc_src_branch), .pc_src_jal(pc_src_jal), .pc_src_jalr(pc_src_jalr),
         .opa_sel(opa_sel), .opb_sel(opb_sel), .br_un(br_un), .wb_sel(wb_sel),
-        .o_insn_vld(o_insn_vld), .alu_src_b_is_imm()
+        .o_insn_vld(o_insn_vld), .alu_src_b_is_imm(unused_alu_src_imm)
     );
 
     // Compute next PC via control selections
@@ -90,9 +92,11 @@ module singlecycle (
     // Stub instances to match requested structure
     // Register file
     logic [31:0] rf_r1, rf_r2;
-    regfile u_regfile (
-        .clk(i_clk), .we(rd_wren), .rs1(imem_rdata[19:15]), .rs2(imem_rdata[24:20]), .rd(imem_rdata[11:7]), .wdata(wb_data),
-        .rdata1(rf_r1), .rdata2(rf_r2)
+    regfile u_rf (
+        .clk(i_clk), .we(rd_wren),
+        .ra1(imem_rdata[19:15]), .ra2(imem_rdata[24:20]), .wa(imem_rdata[11:7]),
+        .wd(wb_data),
+        .rd1(rf_r1), .rd2(rf_r2)
     );
 
     // Immediate generator
@@ -146,5 +150,9 @@ module singlecycle (
             default: wb_data = alu_y;
         endcase
     end
+
+    // JAL trace (optional)
+    always @(posedge i_clk) if (i_rst_n && imem_rdata[6:0]==7'b1101111)
+        $display("JAL @PC=%08x imm=%08x pc_src_jal=%0d", o_pc_debug, imm, pc_src_jal);
 
 endmodule
