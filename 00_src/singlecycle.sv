@@ -28,8 +28,8 @@ module singlecycle (
     assign rst = ~i_rst_n;
 
     // PC logic
-    logic [31:0] pc_curr, pc_next;
-    assign pc_next = pc_curr + 32'd4;
+    logic [31:0] pc_curr, pc_next, pc_plus4;
+    assign pc_plus4 = pc_curr + 32'd4;
     assign o_pc_debug = pc_curr;
 
     // Instruction memory
@@ -48,13 +48,37 @@ module singlecycle (
         .clk(i_clk), .rst(rst), .pc_next(pc_next), .pc_curr(pc_curr)
     );
 
-    // Expose instruction fetch valid each cycle after reset deasserted
+    // Control unit
+    logic [1:0] pc_sel;
+    logic rd_wren, opa_sel;
+    logic [1:0] opb_sel, wb_sel;
+    logic [3:0] alu_op;
+    logic mem_wren;
+    control u_ctrl(
+        .i_rst(rst), .i_instr(imem_rdata),
+        .pc_sel(pc_sel), .rd_wren(rd_wren), .br_un(br_un), .opa_sel(opa_sel), .opb_sel(opb_sel),
+        .alu_op(alu_op), .mem_wren(mem_wren), .wb_sel(wb_sel), .o_insn_vld(o_insn_vld)
+    );
+
+    // For now, compute only pc_next mux options we have
+    logic [31:0] br_target, jal_target, jalr_target;
+    assign br_target  = pc_curr;   // placeholder until immgen used
+    assign jal_target = pc_curr;   // placeholder
+    assign jalr_target= pc_curr;   // placeholder
+    always_comb begin
+        unique case (pc_sel)
+            2'b00: pc_next = pc_plus4;
+            2'b01: pc_next = br_target;
+            2'b10: pc_next = jal_target;
+            2'b11: pc_next = jalr_target;
+            default: pc_next = pc_plus4;
+        endcase
+    end
+
+    // Expose instruction fetch trace
     always_ff @(posedge i_clk) begin
         if (!rst) begin
-            o_insn_vld <= 1'b1;
             $display("IF PC=%08x INSTR=%08x", pc_curr, imem_rdata);
-        end else begin
-            o_insn_vld <= 1'b0;
         end
     end
 
@@ -80,18 +104,17 @@ module singlecycle (
         .a(32'd0), .b(32'd0), .i_br_un(br_un), .o_br_equal(br_equal), .o_br_less(br_less)
     );
 
-    // ALU (unused)
-    logic [31:0] alu_y;
-    alu u_alu (
-        .a(32'd0), .b(32'd0), .op(3'd0), .y(alu_y)
-    );
+    // ALU + operand muxes (placeholder wiring)
+    logic [31:0] alu_a, alu_b, alu_y;
+    assign alu_a = opa_sel ? pc_curr : rf_r1;
+    assign alu_b = (opb_sel==2'b00) ? rf_r2 : (opb_sel==2'b01 ? imm_i : 32'd4);
+    alu u_alu (.a(alu_a), .b(alu_b), .op(alu_op), .y(alu_y));
 
-    // Load/Store Unit (memory-mapped IO + RAM). Currently idle (no real core decode),
-    // but instantiated and wired to IOs.
-    assign lsu_we    = 1'b0;
-    assign lsu_re    = 1'b0;
-    assign lsu_addr  = 32'd0;
-    assign lsu_wdata = 32'd0;
+    // Load/Store Unit (memory-mapped IO + RAM). Tie address/data to ALU results for now.
+    assign lsu_we    = mem_wren;
+    assign lsu_re    = 1'b0; // enable when LOAD decoding connects
+    assign lsu_addr  = alu_y;
+    assign lsu_wdata = rf_r2;
 
     lsu u_lsu (
         .clk(i_clk), .rst(rst),
@@ -108,8 +131,16 @@ module singlecycle (
 
     // IO now driven by LSU instance
 
-    // Unused inputs
-    logic unused;
-    assign unused = ^{i_io_sw, i_io_btn};
+    // Writeback mux (placeholder; no regfile write currently connected)
+    logic [31:0] wb_data;
+    always_comb begin
+        unique case (wb_sel)
+            2'b00: wb_data = alu_y;     // ALU
+            2'b01: wb_data = lsu_rdata; // LOAD
+            2'b10: wb_data = pc_plus4;  // JAL/JALR link
+            2'b11: wb_data = alu_y;     // AUIPC/LUI path simplified
+            default: wb_data = alu_y;
+        endcase
+    end
 
 endmodule
