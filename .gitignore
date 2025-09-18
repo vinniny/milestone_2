@@ -1,4 +1,11 @@
 sim/
+obj_dir/
+*.vcd
+*.fst
+*.log
+*.hex
+build/
+sim/
 *.vcd
 *.fst
 *.log

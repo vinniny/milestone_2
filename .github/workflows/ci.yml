@@ -1,11 +1,11 @@
-name: verilog-ci
+name: CI
 
 on:
   push:
   pull_request:
 
 jobs:
-  lint-and-sim:
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -13,7 +13,8 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y verilator iverilog
-      - name: Lint (Verilator)
+      - name: Lint
         run: make lint
-      - name: Simulate (Icarus)
-        run: make SIM=icarus run
+      - name: Sim
+        run: make sim
+
