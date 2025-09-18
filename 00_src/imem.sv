@@ -1,12 +1,23 @@
 `timescale 1ns/1ps
-// Instruction memory interface (simple ROM-like)
+// Instruction memory ROM: 8 KiB (2048 words)
 module imem (
     input  logic [31:0] addr,
     output logic [31:0] rdata
 );
-    logic [31:0] mem [0:255]; // 1KB (256 words)
+    logic [31:0] mem [0:2047];
 
-    initial $readmemh("asm/prog.hex", mem);
+    // Load from default path, allow +HEX= override via plusarg
+    initial begin
+        string path;
+        if ($value$plusargs("HEX=%s", path)) begin
+            $display("IMEM: loading hex from +HEX=%0s", path);
+            $readmemh(path, mem);
+        end else begin
+            $display("IMEM: loading hex from default 02_test/dump/mem.dump");
+            $readmemh("02_test/dump/mem.dump", mem);
+        end
+    end
 
-    assign rdata = mem[addr[9:2]]; // word aligned
+    // Word-aligned read; 8 KiB -> use bits [12:2] (2^11 entries)
+    assign rdata = mem[addr[12:2]];
 endmodule
