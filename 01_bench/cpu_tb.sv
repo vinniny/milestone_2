@@ -22,13 +22,13 @@ module cpu_tb;
 
   // Use a clocked counter for reset release and stop condition.
   integer cycles = 0;
-  integer seen_vld = 0;
+  logic   seen_vld = 1'b0;
 
   // Initialize simple regs only (no @, no repeat)
   initial begin
     rstn     = 0;
     cycles   = 0;
-    seen_vld = 0;
+    seen_vld = 1'b0;
   end
 
   // Single clocked process controls everything
