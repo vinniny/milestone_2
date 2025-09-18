@@ -1,11 +1,7 @@
-name: CI
-
-on:
-  push:
-  pull_request:
-
+name: verilog-ci
+on: [push, pull_request]
 jobs:
-  build:
+  lint-and-sim:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -15,7 +11,7 @@ jobs:
           sudo apt-get install -y verilator iverilog
       - name: Check no for/generate
         run: 10_sim/check_forbidden.sh
-      - name: Lint
+      - name: Lint (Verilator)
         run: make lint
-      - name: Sim
-        run: make sim
+      - name: Simulate (Icarus)
+        run: make SIM=icarus run
