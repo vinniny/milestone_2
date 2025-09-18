@@ -105,9 +105,10 @@ module singlecycle (
 
     // ALU + operand muxes (placeholder wiring)
     logic [31:0] alu_a, alu_b, alu_y;
+    logic alu_zero;
     assign alu_a = opa_sel ? pc_curr : rf_r1;
     assign alu_b = (opb_sel==2'b00) ? rf_r2 : (opb_sel==2'b01 ? imm_i : 32'd4);
-    alu u_alu (.a(alu_a), .b(alu_b), .op(alu_op), .y(alu_y));
+    alu u_alu (.a(alu_a), .b(alu_b), .op(alu_op), .y(alu_y), .zero(alu_zero));
 
     // Load/Store Unit (memory-mapped IO + RAM). Tie address/data to ALU results for now.
     assign lsu_we    = mem_wren;
