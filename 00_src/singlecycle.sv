@@ -39,14 +39,9 @@ module singlecycle (
         .rdata(imem_rdata)
     );
 
-    // Data memory interface (stubbed via signals; no side effects)
-    logic        dmem_we, dmem_re;
-    logic [31:0] dmem_addr, dmem_wdata, dmem_rdata;
-    assign dmem_we    = 1'b0;
-    assign dmem_re    = 1'b0;
-    assign dmem_addr  = 32'd0;
-    assign dmem_wdata = 32'd0;
-    assign dmem_rdata = 32'd0;
+    // LSU wires
+    logic        lsu_we, lsu_re;
+    logic [31:0] lsu_addr, lsu_wdata, lsu_rdata;
 
     // PC register
     pc u_pc (
@@ -89,28 +84,30 @@ module singlecycle (
         .a(32'd0), .b(32'd0), .op(3'd0), .y(alu_y)
     );
 
-    // Load/store unit: not implemented in repo; tie off via dmem signals
-    // If an lsu module is later added, replace this stub tie-off.
+    // Load/Store Unit (memory-mapped IO + RAM). Currently idle (no real core decode),
+    // but instantiated and wired to IOs.
+    assign lsu_we    = 1'b0;
+    assign lsu_re    = 1'b0;
+    assign lsu_addr  = 32'd0;
+    assign lsu_wdata = 32'd0;
+
+    lsu u_lsu (
+        .clk(i_clk), .rst(rst),
+        .i_we(lsu_we), .i_re(lsu_re), .i_addr(lsu_addr), .i_wdata(lsu_wdata), .o_rdata(lsu_rdata),
+        .o_io_ledr(o_io_ledr), .o_io_ledg(o_io_ledg),
+        .o_io_hex0(o_io_hex0), .o_io_hex1(o_io_hex1), .o_io_hex2(o_io_hex2), .o_io_hex3(o_io_hex3),
+        .o_io_hex4(o_io_hex4), .o_io_hex5(o_io_hex5), .o_io_hex6(o_io_hex6), .o_io_hex7(o_io_hex7),
+        .o_io_lcd(o_io_lcd),
+        .i_io_sw(i_io_sw), .i_io_btn(i_io_btn)
+    );
 
     // Simple ControlUnit stub (not implemented; signals unused)
     // If a ControlUnit module exists later, instantiate and wire here.
 
-    // Drive IO outputs with simple defaults
-    assign o_io_ledr = 32'd0;
-    assign o_io_ledg = 32'd0;
-    assign o_io_lcd  = 32'd0;
-    assign o_io_hex0 = 7'h00;
-    assign o_io_hex1 = 7'h00;
-    assign o_io_hex2 = 7'h00;
-    assign o_io_hex3 = 7'h00;
-    assign o_io_hex4 = 7'h00;
-    assign o_io_hex5 = 7'h00;
-    assign o_io_hex6 = 7'h00;
-    assign o_io_hex7 = 7'h00;
+    // IO now driven by LSU instance
 
     // Unused inputs
     logic unused;
     assign unused = ^{i_io_sw, i_io_btn};
 
 endmodule
-

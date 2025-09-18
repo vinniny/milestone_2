@@ -1,0 +1,96 @@
+`timescale 1ns/1ps
+
+// Load/Store Unit with simple memory map per milestone
+// - 0x2000–0x3FFF: 8 KiB data RAM (word-aligned)
+// - 0x7000–0x700F: RED LEDs   (write-mapped)
+// - 0x7010–0x701F: GREEN LEDs (write-mapped)
+// - 0x7020–0x7027: Seven-seg  (stub safe)
+// - 0x7030–0x703F: LCD regs   (stub)
+// - 0x7800–0x780F: Switches   (read-mapped)
+// - 0x7810–0x781F: Buttons    (read-mapped)
+module lsu (
+    input  logic        clk,
+    input  logic        rst,
+    // Access interface (word-aligned LW/SW only)
+    input  logic        i_we,
+    input  logic        i_re,
+    input  logic [31:0] i_addr,
+    input  logic [31:0] i_wdata,
+    output logic [31:0] o_rdata,
+    // IO ports
+    output logic [31:0] o_io_ledr,
+    output logic [31:0] o_io_ledg,
+    output logic [6:0]  o_io_hex0,
+    output logic [6:0]  o_io_hex1,
+    output logic [6:0]  o_io_hex2,
+    output logic [6:0]  o_io_hex3,
+    output logic [6:0]  o_io_hex4,
+    output logic [6:0]  o_io_hex5,
+    output logic [6:0]  o_io_hex6,
+    output logic [6:0]  o_io_hex7,
+    output logic [31:0] o_io_lcd,
+    input  logic [31:0] i_io_sw,
+    input  logic [3:0]  i_io_btn
+);
+    // 8 KiB RAM: 2048 words mapped at 0x2000..0x3FFF
+    logic [31:0] ram [0:2047];
+
+    // Address decoding helpers
+    logic in_ram, in_ledr, in_ledg, in_sw, in_btn;
+    assign in_ram  = (i_addr[15:13] == 3'b001) && (i_addr[12] == 1'b0); // 0x2000-0x3FFF
+    assign in_ledr = (i_addr[15:4]  == 12'h700); // 0x7000-0x700F
+    assign in_ledg = (i_addr[15:4]  == 12'h701); // 0x7010-0x701F
+    // seven-seg 0x7020-0x7027: 8 bytes -> ignore for now (stub)
+    // lcd      0x7030-0x703F: stub
+    assign in_sw   = (i_addr[15:4]  == 12'h780); // 0x7800-0x780F
+    assign in_btn  = (i_addr[15:4]  == 12'h781); // 0x7810-0x781F
+
+    // Write side-effects occur on clock edge
+    always_ff @(posedge clk) begin
+        if (rst) begin
+            o_io_ledr <= 32'd0;
+            o_io_ledg <= 32'd0;
+            o_io_hex0 <= 7'd0;
+            o_io_hex1 <= 7'd0;
+            o_io_hex2 <= 7'd0;
+            o_io_hex3 <= 7'd0;
+            o_io_hex4 <= 7'd0;
+            o_io_hex5 <= 7'd0;
+            o_io_hex6 <= 7'd0;
+            o_io_hex7 <= 7'd0;
+            o_io_lcd  <= 32'd0;
+        end else if (i_we) begin
+            if (in_ram) begin
+                ram[i_addr[12:2]] <= i_wdata; // word-aligned
+            end else if (in_ledr) begin
+                o_io_ledr <= i_wdata;
+            end else if (in_ledg) begin
+                o_io_ledg <= i_wdata;
+            end else begin
+                // Seven-seg and LCD stubs: accept writes, no effect (could latch in future)
+                /* verilator lint_off UNUSED */
+                logic [31:0] discard;
+                discard <= i_wdata;
+                /* verilator lint_on UNUSED */
+            end
+        end
+    end
+
+    // Combinational read mux (async read)
+    always_comb begin
+        o_rdata = 32'd0;
+        if (i_re) begin
+            if (in_ram) begin
+                o_rdata = ram[i_addr[12:2]]; // word-aligned
+            end else if (in_sw) begin
+                o_rdata = i_io_sw;
+            end else if (in_btn) begin
+                o_rdata = {28'd0, i_io_btn};
+            end else begin
+                o_rdata = 32'd0; // reserved/others
+            end
+        end
+    end
+
+endmodule
+
