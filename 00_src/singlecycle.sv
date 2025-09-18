@@ -92,11 +92,18 @@ module singlecycle (
     // Stub instances to match requested structure
     // Register file
     logic [31:0] rf_r1, rf_r2;
-    regfile u_rf (
-        .clk(i_clk), .we(rd_wren),
-        .ra1(imem_rdata[19:15]), .ra2(imem_rdata[24:20]), .wa(imem_rdata[11:7]),
-        .wd(wb_data),
-        .rd1(rf_r1), .rd2(rf_r2)
+    wire [4:0] rs1 = imem_rdata[19:15];
+    wire [4:0] rs2 = imem_rdata[24:20];
+    wire [4:0] rd  = imem_rdata[11:7];
+    regfile u_regfile (
+        .clk(i_clk),
+        .we(rd_wren),
+        .rs1(rs1),
+        .rs2(rs2),
+        .rd (rd),
+        .wdata(wb_data),
+        .rdata1(rf_r1),
+        .rdata2(rf_r2)
     );
 
     // Immediate generator
