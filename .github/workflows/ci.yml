@@ -13,8 +13,9 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y verilator iverilog
+      - name: Check no for/generate
+        run: 10_sim/check_forbidden.sh
       - name: Lint
         run: make lint
       - name: Sim
         run: make sim
-
