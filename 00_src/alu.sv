@@ -1,95 +1,62 @@
 `timescale 1ns/1ps
-// ALU without use of '-', '<', '>', '<<', '>>'
-// Supports: ADD, SUB (via add a+~b+1), AND, OR, XOR,
-//           SLT/SLTU via subtract sign/borrow,
-//           SLL/SRL/SRA via 5-stage barrel shifter built from muxes.
-module alu (
-    input  logic [31:0] a,
-    input  logic [31:0] b,
-    input  logic [3:0]  op,   // 0000=ADD,0001=SUB,0010=AND,0011=OR,0100=XOR,0101=SLL,0110=SRL,0111=SRA,1000=SLT,1001=SLTU
-    output logic [31:0] y
+
+module alu(
+  input  logic [31:0] a,
+  input  logic [31:0] b,
+  input  logic [3:0]  op,     // 0=ADD,1=SUB,2=AND,3=OR,4=XOR,5=SLL,6=SRL,7=SRA,8=SLT,9=SLTU
+  output logic [31:0] y,
+  output logic        zero
 );
-    // 32-bit adder
-    function automatic [32:0] add32(input logic [31:0] x, input logic [31:0] y, input logic cin);
-        logic [32:0] sum;
-        sum = {1'b0,x} + {1'b0,y} + cin;
-        return sum;
-    endfunction
+  // shared adder for ADD/SUB and compare
+  logic [31:0] b_sub = ~b;
+  logic [31:0] add_in_b;
+  logic        add_in_cin;
+  logic [31:0] add_sum;
+  logic        add_cout, add_ovf;
 
-    // SUB = a + ~b + 1
-    logic [32:0] add_res;
-    logic [31:0] sub_b;
-    assign sub_b = ~b;
-    
-    // Shifter: build left/right/arithmetic via mux stages (no shifts)
-    logic [4:0] shamt;
-    assign shamt = b[4:0];
-    
-    function automatic [31:0] shift_left(input logic [31:0] x, input logic [4:0] s);
-        logic [31:0] st0, st1, st2, st3, st4;
-        // by 1
-        st0 = s[0] ? {x[30:0], 1'b0} : x;
-        // by 2
-        st1 = s[1] ? {st0[29:0], 2'b00} : st0;
-        // by 4
-        st2 = s[2] ? {st1[27:0], 4'h0} : st1;
-        // by 8
-        st3 = s[3] ? {st2[23:0], 8'h00} : st2;
-        // by 16
-        st4 = s[4] ? {st3[15:0], 16'h0000} : st3;
-        return st4;
-    endfunction
-
-    function automatic [31:0] shift_right_logical(input logic [31:0] x, input logic [4:0] s);
-        logic [31:0] st0, st1, st2, st3, st4;
-        st0 = s[0] ? {1'b0, x[31:1]} : x;
-        st1 = s[1] ? {2'b00, st0[31:2]} : st0;
-        st2 = s[2] ? {4'h0, st1[31:4]} : st1;
-        st3 = s[3] ? {8'h00, st2[31:8]} : st2;
-        st4 = s[4] ? {16'h0000, st3[31:16]} : st3;
-        return st4;
-    endfunction
-
-    function automatic [31:0] shift_right_arith(input logic [31:0] x, input logic [4:0] s);
-        logic fill;
-        fill = x[31];
-        logic [31:0] st0, st1, st2, st3, st4;
-        st0 = s[0] ? {fill, x[31:1]} : x;
-        st1 = s[1] ? {{2{fill}}, st0[31:2]} : st0;
-        st2 = s[2] ? {{4{fill}}, st1[31:4]} : st1;
-        st3 = s[3] ? {{8{fill}}, st2[31:8]} : st2;
-        st4 = s[4] ? {{16{fill}}, st3[31:16]} : st3;
-        return st4;
-    endfunction
-
-    // Perform add/sub
-    always_comb begin
-        add_res = add32(a, (op==4'b0001 || op==4'b1000 || op==4'b1001) ? sub_b : b, (op==4'b0001 || op==4'b1000 || op==4'b1001));
+  // SUB uses a + (~b) + 1; ADD uses a + b + 0
+  always_comb begin
+    if (op==4'd1 || op==4'd8 || op==4'd9) begin
+      add_in_b   = b_sub;
+      add_in_cin = 1'b1;
+    end else begin
+      add_in_b   = b;
+      add_in_cin = 1'b0;
     end
+  end
 
-    // SLT/SLTU from subtract result
-    logic sub_neg;      // sign of (a-b)
-    logic sub_borrow;   // invert of carry out for a + ~b + 1
-    assign sub_neg    = add_res[31];
-    assign sub_borrow = ~add_res[32];
+  add32 u_add(.a(a), .b(add_in_b), .cin(add_in_cin), .sum(add_sum), .cout(add_cout), .ovf(add_ovf));
 
-    // Equality by XOR-reduction
-    logic eq;
-    assign eq = ~(|(a ^ b));
+  // Shifts via barrel shifter
+  logic [31:0] sh_y;
+  logic [1:0]  sh_mode;
+  assign sh_mode = (op==4'd5) ? 2'b00 :   // SLL
+                   (op==4'd6) ? 2'b01 :   // SRL
+                   (op==4'd7) ? 2'b10 :   // SRA
+                                 2'b00;   // default
+  shifter32 u_sh(.a(a), .shamt(b[4:0]), .mode(sh_mode), .y(sh_y));
 
-    always_comb begin
-        unique case (op)
-            4'b0000: y = add_res[31:0];                 // ADD
-            4'b0001: y = add_res[31:0];                 // SUB via add
-            4'b0010: y = a & b;                         // AND
-            4'b0011: y = a | b;                         // OR
-            4'b0100: y = a ^ b;                         // XOR
-            4'b0101: y = shift_left(a, shamt);          // SLL
-            4'b0110: y = shift_right_logical(a, shamt); // SRL
-            4'b0111: y = shift_right_arith(a, shamt);   // SRA
-            4'b1000: y = {31'd0, (a[31] ^ b[31]) ? a[31] : sub_neg}; // SLT signed
-            4'b1001: y = {31'd0, sub_borrow};           // SLTU unsigned
-            default: y = 32'hDEADBEEF;
-        endcase
-    end
+  // Comparisons from subtract flags (a - b)
+  // Signed less: N xor V -> add_sum[31] ^ add_ovf
+  // Unsigned less: ~Cout
+  logic slt  = add_sum[31] ^ add_ovf;
+  logic sltu = ~add_cout;
+
+  always_comb begin
+    unique case (op)
+      4'd0: y = add_sum;         // ADD
+      4'd1: y = add_sum;         // SUB (via adder w/ ~b + 1)
+      4'd2: y = a & b;           // AND
+      4'd3: y = a | b;           // OR
+      4'd4: y = a ^ b;           // XOR
+      4'd5: y = sh_y;            // SLL
+      4'd6: y = sh_y;            // SRL
+      4'd7: y = sh_y;            // SRA
+      4'd8: y = {31'd0, slt};    // SLT
+      4'd9: y = {31'd0, sltu};   // SLTU
+      default: y = 32'd0;
+    endcase
+  end
+
+  assign zero = ~(|y);
 endmodule
