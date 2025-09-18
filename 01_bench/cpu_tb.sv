@@ -1,8 +1,10 @@
 `timescale 1ns/1ps
 module cpu_tb;
+  // Clock/reset
   logic clk = 0, rstn = 0;
   always #5 clk = ~clk;  // 100 MHz
 
+  // DUT I/O
   logic [31:0] pc_dbg, ledr, ledg, lcd, sw = 32'd0;
   logic [3:0]  btn = 4'd0;
   logic        insn_vld;
@@ -18,26 +20,30 @@ module cpu_tb;
     .i_io_sw(sw), .i_io_btn(btn)
   );
 
-  // Separate procedures (Verilator prefers timing controls at top of procedures)
-  initial begin
-    rstn = 0;
-  end
-
-  initial begin
-    // release reset after 4 rising edges
-    repeat (4) @(posedge clk);
-    rstn = 1;
-  end
-
+  // Verilator-friendly: no timing control inside initial
+  // Use a clocked counter for reset release and stop condition.
   integer cycles = 0;
   integer seen_vld = 0;
 
-  // One clocked process to count, sample, print, and finish
+  // Initialize simple regs only (no @, no repeat)
+  initial begin
+    rstn     = 0;
+    cycles   = 0;
+    seen_vld = 0;
+  end
+
+  // Single clocked process controls everything
   always @(posedge clk) begin
     cycles <= cycles + 1;
+
+    // Deassert reset after 4 cycles
+    if (cycles == 4) rstn <= 1;
+
+    // Observe signals
     if (insn_vld) seen_vld <= 1;
     if (cycles % 100 == 0) $display("t=%0t PC=%08x insn_vld=%0d", $time, pc_dbg, insn_vld);
 
+    // Finish after N cycles
     if (cycles == 2000) begin
       if (!seen_vld) $display("FAIL: o_insn_vld never asserted");
       else           $display("PASS: o_insn_vld asserted");
