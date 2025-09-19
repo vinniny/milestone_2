@@ -6,3 +6,6 @@
   - Writes are accepted (safe stubs); reads return zero.
   - When seven-seg is fully implemented per bitfield maps, we will add byte/halfword support and define misaligned access policy.
 
+CI/Lint specifics
+- Verilator on CI is an older 4.0x; testbench timing options are unavailable. We lint RTL only (`make lint`) with `--top-module singlecycle` and suppress `SYNCASYNCNET` to avoid exit-on-warning.
+- Forbidden-ops guard (`10_sim/check_forbidden.sh`) is verbose and resilient; it prints scanned files and offending lines and falls back if `perl` is missing.

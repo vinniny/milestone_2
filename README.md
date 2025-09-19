@@ -10,7 +10,7 @@ Requirements
 - Optional: RISC‑V toolchain (`riscv32-unknown-elf-gcc`, `objcopy`) for `scripts/build_hex.sh`
 
 Quickstart
-- Lint: `make lint`
+- Lint: `make lint` (RTL-only lint on older Verilator; TB lint intentionally excluded)
 - Run (Icarus default): `make run`
   - ROM loads `02_test/dump/mem.dump` by default; override via plusarg: `make run VVPARGS='+HEX=path/to.hex'`
 
@@ -61,5 +61,4 @@ Datapath Snapshot
 CI & Guards
 - Workflow: `.github/workflows/ci.yml` (verilog‑ci)
   - Steps: install tools, forbidden‑ops guard, lint (Verilator), run (Icarus)
-- Forbidden‑ops guard: `10_sim/check_forbidden.sh` (blocks `for`/`generate` in `00_src/`)
-
+- Forbidden‑ops guard: `10_sim/check_forbidden.sh` (blocks `for`/`generate` in `00_src/`; now verbose and resilient if `perl` is missing)
