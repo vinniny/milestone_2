@@ -18,3 +18,10 @@ jobs:
 
       - name: Simulate (Icarus) – AUIPC/LUI
         run: make SIM=icarus run VVPARGS='+HEX=02_test/dump/mem.dump'
+      - name: Generate compliance matrix
+        run: make compliance
+      - name: Upload compliance artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: compliance-matrix
+          path: 99_doc/COMPLIANCE.md
