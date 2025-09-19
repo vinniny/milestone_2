@@ -26,8 +26,8 @@ module cpu_top (
     assign dmem_addr = 32'd0;
     assign dmem_wdata= 32'd0;
 
-    // PC register
-    pc u_pc(.clk(clk), .rst(rst), .pc_next(pc_next), .pc_curr(pc_curr));
+    // PC register using pc_core
+    pc_core u_pc(.i_clk(clk), .i_rst_n(~rst), .i_pc_next(pc_next), .o_pc(pc_curr));
 
     // Trace
     always_ff @(posedge clk) begin

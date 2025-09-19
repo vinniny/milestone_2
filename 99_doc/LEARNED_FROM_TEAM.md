@@ -1,0 +1,5 @@
+- ALU: subtract with ~B+1; SLT/SLTU from flags; shifts via mux (no shift ops).
+- BRC: unsigned less is ~Cout; equality from diff==0; outputs declared logic.
+- PC: single always_ff with async active-low reset.
+- Regfile: loop-free reset behavior; x0 hardwired to 0; width-accurate (5-bit) compares.
+- Control ↔ Datapath: exact signal contract only; add traces to catch mismatches.

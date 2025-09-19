@@ -27,15 +27,16 @@ module singlecycle (
     logic rst;
     assign rst = ~i_rst_n;
 
-    // PC logic
-    logic [31:0] pc_curr, pc_next, pc_plus4;
-    assign pc_plus4 = pc_curr + 32'd4;
-    assign o_pc_debug = pc_curr;
+    // PC logic split into core/adder/debug
+    logic [31:0] pc_q, pc_plus4, pc_next;
+    pc_core  u_pc   (.i_clk(i_clk), .i_rst_n(i_rst_n), .i_pc_next(pc_next), .o_pc(pc_q));
+    pc_adder u_pca  (.i_pc(pc_q), .o_pc_plus4(pc_plus4));
+    pc_debug u_pcd  (.i_pc(pc_q), .o_pc_debug(o_pc_debug));
 
     // Instruction memory
     logic [31:0] imem_rdata;
     imem u_imem (
-        .addr(pc_curr),
+        .addr (pc_q),
         .rdata(imem_rdata)
     );
 
@@ -44,9 +45,7 @@ module singlecycle (
     logic [31:0] lsu_addr, lsu_wdata, lsu_rdata;
 
     // PC register
-    pc u_pc (
-        .clk(i_clk), .rst(rst), .pc_next(pc_next), .pc_curr(pc_curr)
-    );
+    // pc_core instance declared above
 
     // Control unit
     logic [1:0] pc_sel;
@@ -70,46 +69,48 @@ module singlecycle (
         .o_insn_vld(o_insn_vld), .alu_src_b_is_imm(unused_alu_src_imm)
     );
 
-    // Local detects guarding control mismatches
-    logic jal_detect, jalr_detect, branch_detect;
-    assign jal_detect    = (imem_rdata[6:0] == 7'b1101111);
-    assign jalr_detect   = (imem_rdata[6:0] == 7'b1100111);
-    assign branch_detect = (imem_rdata[6:0] == 7'b1100011);
+    // Local JAL detect for fail-safe next_pc selection during bring-up
+    logic jal_detect;
+    assign jal_detect = (imem_rdata[6:0] == 7'b1101111);
 
-    // Compute next PC via control selections OR local detects
+    // Compute next PC via control selections only
     logic [31:0] br_target, jal_target, jalr_target;
-    assign br_target  = pc_curr + imm;
-    assign jal_target = pc_curr + imm;
+    assign br_target  = pc_q + imm;
+    assign jal_target = pc_q + imm;
     assign jalr_target= (rf_r1 + imm) & 32'hFFFF_FFFE;
     always_comb begin
         pc_next = pc_plus4;
-        if (pc_src_branch && branch_detect) pc_next = br_target;
-        if (pc_src_jal  || jal_detect)      pc_next = jal_target;
-        if (pc_src_jalr || jalr_detect)     pc_next = jalr_target;
+        if (take_branch)               pc_next = br_target;
+        if (pc_src_jal  || jal_detect) pc_next = jal_target; // fail-safe JAL
+        if (pc_src_jalr)               pc_next = jalr_target;
     end
 
     // Expose instruction fetch trace
     always_ff @(posedge i_clk) begin
         if (!rst) begin
-            $display("IF PC=%08x INSTR=%08x", pc_curr, imem_rdata);
+            $display("IF PC=%08x INSTR=%08x", pc_q, imem_rdata);
+        end
+    end
+
+    // Optional extra JAL trace tied to clock
+    always @(posedge i_clk) begin
+        if (imem_rdata[6:0] == 7'b1101111) begin
+            $display("TRACE JAL @PC=%08x pc_src_jal=%0d", o_pc_debug, pc_src_jal);
         end
     end
 
     // Stub instances to match requested structure
     // Register file
     logic [31:0] rf_r1, rf_r2;
+    logic [31:0] rf_wd;
     wire [4:0] rs1 = imem_rdata[19:15];
     wire [4:0] rs2 = imem_rdata[24:20];
     wire [4:0] rd  = imem_rdata[11:7];
     regfile u_regfile (
-        .clk(i_clk),
-        .we(rd_wren),
-        .rs1(rs1),
-        .rs2(rs2),
-        .rd (rd),
-        .wdata(wb_data),
-        .rdata1(rf_r1),
-        .rdata2(rf_r2)
+        .i_clk(i_clk), .i_rst_n(i_rst_n),
+        .i_rs1_addr(rs1), .i_rs2_addr(rs2),
+        .i_rd_addr(rd), .i_rd_wren(rd_wren), .i_rd_data(rf_wd),
+        .o_rs1_data(rf_r1), .o_rs2_data(rf_r2)
     );
 
     // Immediate generator
@@ -124,10 +125,28 @@ module singlecycle (
         .i_rs1_data(rf_r1), .i_rs2_data(rf_r2), .i_br_un(br_un), .o_br_equal(br_equal), .o_br_less(br_less)
     );
 
+    // Take branch when control requests branch and condition matches funct3
+    // Keep existing funct3-based cases but gate by pc_src_branch
+    logic take_branch;
+    always_comb begin
+        take_branch = 1'b0;
+        if (pc_src_branch) begin
+            unique case (imem_rdata[14:12])
+                3'b000: take_branch = br_equal;       // BEQ
+                3'b001: take_branch = ~br_equal;      // BNE
+                3'b100: take_branch = br_less;        // BLT
+                3'b101: take_branch = ~br_less;       // BGE
+                3'b110: take_branch = br_less;        // BLTU (using br_un in BRC)
+                3'b111: take_branch = ~br_less;       // BGEU
+                default: take_branch = 1'b0;
+            endcase
+        end
+    end
+
     // ALU + operand muxes (placeholder wiring)
     logic [31:0] alu_a, alu_b, alu_y;
     logic alu_zero;
-    assign alu_a = opa_sel ? pc_curr : rf_r1;
+    assign alu_a = opa_sel ? pc_q : rf_r1;
     assign alu_b = (opb_sel==2'b00) ? rf_r2 : (opb_sel==2'b01 ? imm : 32'd4);
     alu u_alu (.a(alu_a), .b(alu_b), .op(alu_op), .y(alu_y), .zero(alu_zero));
 
@@ -152,20 +171,28 @@ module singlecycle (
 
     // IO now driven by LSU instance
 
-    // Writeback mux (placeholder; no regfile write currently connected)
-    logic [31:0] wb_data;
-    always_comb begin
-        unique case (wb_sel)
-            2'b00: wb_data = alu_y;     // ALU
-            2'b01: wb_data = lsu_rdata; // LOAD
-            2'b10: wb_data = pc_plus4;  // JAL/JALR link
-            2'b11: wb_data = alu_y;     // AUIPC/LUI path simplified
-            default: wb_data = alu_y;
-        endcase
-    end
+    // Writeback mux: select regfile write data
+    assign rf_wd = (wb_sel==2'b01) ? lsu_rdata :
+                   (wb_sel==2'b10) ? pc_plus4  :
+                                     alu_y;
 
-    // JAL trace (optional)
-    always @(posedge i_clk) if (i_rst_n && jal_detect)
-        $display("JAL @PC=%08x imm=%08x ctrl=%0d local=%0d", o_pc_debug, imm, pc_src_jal, jal_detect);
+    // Trace: opcode vs control select sanity prints
+    // Local opcode decodes only for tracing (not used for functionality)
+    logic is_jal_op, is_jalr_op, is_branch_op;
+    assign is_jal_op    = (imem_rdata[6:0] == 7'b1101111);
+    assign is_jalr_op   = (imem_rdata[6:0] == 7'b1100111);
+    assign is_branch_op = (imem_rdata[6:0] == 7'b1100011);
+
+    always_ff @(posedge i_clk) if (i_rst_n) begin
+        if (is_jal_op)    $display("TRACE JAL   @PC=%08x ctrl_pc_src_jal=%0d",   o_pc_debug, pc_src_jal);
+        if (is_jalr_op)   $display("TRACE JALR  @PC=%08x ctrl_pc_src_jalr=%0d",  o_pc_debug, pc_src_jalr);
+        if (is_branch_op) $display("TRACE BR    @PC=%08x ctrl_pc_src_branch=%0d", o_pc_debug, pc_src_branch);
+        if (is_jal_op && !pc_src_jal)
+            $display("SANITY MISMATCH: JAL opcode seen but pc_src_jal=0 @PC=%08x", o_pc_debug);
+        if (is_jalr_op && !pc_src_jalr)
+            $display("SANITY MISMATCH: JALR opcode seen but pc_src_jalr=0 @PC=%08x", o_pc_debug);
+        if (is_branch_op && !pc_src_branch)
+            $display("SANITY MISMATCH: BRANCH opcode seen but pc_src_branch=0 @PC=%08x", o_pc_debug);
+    end
 
 endmodule

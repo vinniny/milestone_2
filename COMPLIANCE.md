@@ -1,0 +1,2 @@
+- LSU MMIO writes (LEDs at 0x7000/0x7010) are synchronous with a 1-cycle latency by design. Writes latch on the next rising clock edge.
+- The testbench LED settle check waits up to 4 cycles to accommodate pipeline effects and simulator scheduling differences; late updates beyond this window are warned, not fatal.

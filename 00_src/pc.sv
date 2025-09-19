@@ -2,12 +2,13 @@
 // Program counter register
 module pc (
     input  logic        clk,
-    input  logic        rst,
+    input  logic        rst_n,
     input  logic [31:0] pc_next,
     output logic [31:0] pc_curr
 );
-    always_ff @(posedge clk) begin
-        if (rst) pc_curr <= 32'd0;
-        else     pc_curr <= pc_next;
+    // Single clocked block with async active-low reset
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) pc_curr <= 32'd0;
+        else        pc_curr <= pc_next;
     end
 endmodule

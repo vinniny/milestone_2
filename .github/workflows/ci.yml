@@ -13,5 +13,8 @@ jobs:
         run: 10_sim/check_forbidden.sh
       - name: Lint (Verilator)
         run: make lint
-      - name: Simulate (Icarus)
+      - name: Simulate (Icarus) – LED demo
         run: make SIM=icarus run
+
+      - name: Simulate (Icarus) – AUIPC/LUI
+        run: make SIM=icarus run VVPARGS='+HEX=02_test/dump/mem.dump'
