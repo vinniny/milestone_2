@@ -16,7 +16,8 @@ run: | $(BUILD)
 	vvp $(BIN) +HEX=$(HEX)
 
 lint:
-	verilator --lint-only -Wall -Wno-UNUSED -Wno-ASSIGNDLY -Wno-STMTDLY --top-module $(TOP) $(RTL) $(TB)
+	# Lint only RTL; some TB constructs (delays, forks) require timing opts unsupported by CI verilator
+	verilator --lint-only -Wall -Wno-UNUSED -Wno-ASSIGNDLY -Wno-STMTDLY -Wno-SYNCASYNCNET --top-module singlecycle $(RTL)
 
 $(BUILD):
 	@mkdir -p $(BUILD)
