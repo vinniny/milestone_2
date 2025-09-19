@@ -37,7 +37,7 @@ module lsu (
 
     // Address decoding helpers (bit-slice compares; no arithmetic/range compares)
     logic in_ram, in_ledr, in_ledg, in_sw, in_btn, in_hex, in_lcd;
-    assign in_ram  = (i_addr[15:13] == 3'b001) && (i_addr[12] == 1'b0); // 0x2000-0x3FFF
+    assign in_ram  = (i_addr[15:13] == 3'b001); // 0x2000-0x3FFF (covers 0x2xxx & 0x3xxx)
     assign in_ledr = (i_addr[15:4]  == 12'h700); // 0x7000-0x700F
     assign in_ledg = (i_addr[15:4]  == 12'h701); // 0x7010-0x701F
     // seven-seg 0x7020-0x7027: accept writes, ignore reads
