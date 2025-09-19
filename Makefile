@@ -24,3 +24,7 @@ $(BUILD):
 
 clean:
 	rm -rf $(BUILD) obj_dir *.vcd *.fst *.log
+
+.PHONY: compliance
+compliance:
+	@./scripts/gen_compliance.sh
