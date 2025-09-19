@@ -18,6 +18,8 @@ module immgen(
   assign imm_j = {{11{instr[31]}}, instr[31], instr[19:12], instr[20], instr[30:21], 1'b0};
 
   always_comb begin
+    // Safe default to avoid X propagation
+    imm = 32'b0;
     unique case (imm_sel)
       3'd0: imm = imm_i;
       3'd1: imm = imm_s;

@@ -8,7 +8,10 @@ module pc (
 );
     // Single clocked block with async active-low reset
     always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) pc_curr <= 32'd0;
-        else        pc_curr <= pc_next;
+        if (!rst_n) begin
+            pc_curr <= 32'd0;
+        end else begin
+            pc_curr <= pc_next;
+        end
     end
 endmodule

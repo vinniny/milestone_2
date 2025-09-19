@@ -22,8 +22,12 @@ module regfile(
       r[ 8]<=0; r[ 9]<=0; r[10]<=0; r[11]<=0; r[12]<=0; r[13]<=0; r[14]<=0; r[15]<=0;
       r[16]<=0; r[17]<=0; r[18]<=0; r[19]<=0; r[20]<=0; r[21]<=0; r[22]<=0; r[23]<=0;
       r[24]<=0; r[25]<=0; r[26]<=0; r[27]<=0; r[28]<=0; r[29]<=0; r[30]<=0; r[31]<=0;
-    end else if (i_rd_wren && (i_rd_addr != 5'd0)) begin
-      r[i_rd_addr] <= i_rd_data;
+    end else begin
+      if (i_rd_wren && (i_rd_addr != 5'd0)) begin
+        r[i_rd_addr] <= i_rd_data;
+      end
+      // Enforce x0 hardwired to zero
+      r[0] <= 32'b0;
     end
   end
 endmodule
