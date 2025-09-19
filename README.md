@@ -2,7 +2,7 @@
 
 Overview
 - Runnable single‑cycle RV32I skeleton with lint (Verilator), sim (Icarus), forbidden‑ops guard, and CI.
-- Core modules: `singlecycle`, `alu` (no -,<,>,<<,>>), `add32`, `shifter32`, `immgen` (I/S/B/U/J), `brc` (XOR‑reduce eq + add flags), `regfile`, `imem`, `lsu`, `pc`.
+- Core modules: `singlecycle`, `alu` (no -,<,>,<<,>>), `add32`, `shifter32`, `immgen` (I/S/B/U/J), `brc` (XOR‑reduce eq + add flags), `regfile`, `imem`, `lsu`, `pc_core`/`pc_adder`.
 
 Requirements
 - Simulation: `iverilog`, `vvp`
@@ -12,7 +12,9 @@ Requirements
 Quickstart
 - Lint: `make lint` (RTL-only lint on older Verilator; TB lint intentionally excluded)
 - Run (Icarus default): `make run`
-  - ROM loads `02_test/dump/mem.dump` by default; override via plusarg: `make run VVPARGS='+HEX=path/to.hex'`
+  - ROM loads `02_test/dump/mem.dump` by default; override via make var: `make run HEX=path/to.hex`
+  - Prevent hangs: wall-clock timeout via `TIMEOUT` (seconds), TB watchdog via `+TB_MAX_CYCLES`
+    - Examples: `make run TIMEOUT=120 VVPARGS='+TB_MAX_CYCLES=50000'`
 
 LED Demo
 - Program: `02_test/asm/led_demo.S` (writes RED=1 @0x7000 and GREEN=2 @0x7010, then loops)
@@ -26,7 +28,7 @@ LED Demo
   - `PASS: LED checks and insn_vld OK`
 
 Repo Layout
-- `00_src/` — RTL (singlecycle, alu, add32, shifter32, immgen, brc, regfile, imem, lsu, pc)
+- `00_src/` — RTL (singlecycle, alu, add32, shifter32, immgen, brc, regfile, imem, lsu, pc_core/pc_adder)
 - `01_bench/` — testbenches (`cpu_tb.sv` self‑checks and prints)
 - `02_test/asm/` — example programs (e.g., `led_demo.S`)
 - `02_test/dump/` — ROM images (`mem.dump`)
@@ -42,7 +44,7 @@ Forbidden‑Ops Policy (ALU/BRC)
 - BRC: equality via XOR‑reduction; less via subtract flags from `add32`
 
 Memory Map (LSU)
-- 0x2000–0x3FFF: 8 KiB RAM (SW/LW only; clk’d writes, async reads)
+- 0x2000–0x3FFF: 8 KiB RAM (SW/LW only; clk’d writes, async reads; implemented inside `lsu.sv`)
 - 0x7000–0x700F: RED LEDs (write)
 - 0x7010–0x701F: GREEN LEDs (write)
 - 0x7020–0x7027: Seven‑seg (stub)

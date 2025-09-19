@@ -14,10 +14,10 @@ jobs:
       - name: Lint (Verilator)
         run: make lint
       - name: Simulate (Icarus) – LED demo
-        run: make SIM=icarus run
+        run: make run TIMEOUT=90 VVPARGS='+TB_MAX_CYCLES=50000'
 
       - name: Simulate (Icarus) – AUIPC/LUI
-        run: make SIM=icarus run VVPARGS='+HEX=02_test/dump/mem.dump'
+        run: make run TIMEOUT=90 HEX=02_test/dump/mem.dump VVPARGS='+TB_MAX_CYCLES=50000'
       - name: Generate compliance matrix
         run: make compliance
       - name: Upload compliance artifact

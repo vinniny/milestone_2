@@ -31,7 +31,8 @@ module singlecycle (
     logic [31:0] pc_q, pc_plus4, pc_next;
     pc_core  u_pc   (.i_clk(i_clk), .i_rst_n(i_rst_n), .i_pc_next(pc_next), .o_pc(pc_q));
     pc_adder u_pca  (.i_pc(pc_q), .o_pc_plus4(pc_plus4));
-    pc_debug u_pcd  (.i_pc(pc_q), .o_pc_debug(o_pc_debug));
+    // Inline pc_debug: expose PC directly
+    assign o_pc_debug = pc_q;
 
     // Instruction memory
     logic [31:0] imem_rdata;
@@ -73,11 +74,38 @@ module singlecycle (
     logic jal_detect;
     assign jal_detect = (imem_rdata[6:0] == 7'b1101111);
 
-    // Compute next PC via control selections only
+    // Register file
+    logic [31:0] rf_r1, rf_r2;
+    logic [31:0] rf_wd;
+    wire [4:0] rs1 = imem_rdata[19:15];
+    wire [4:0] rs2 = imem_rdata[24:20];
+    wire [4:0] rd  = imem_rdata[11:7];
+    regfile u_regfile (
+        .i_clk(i_clk), .i_rst_n(i_rst_n),
+        .i_rs1_addr(rs1), .i_rs2_addr(rs2),
+        .i_rd_addr(rd), .i_rd_wren(rd_wren), .i_rd_data(rf_wd),
+        .o_rs1_data(rf_r1), .o_rs2_data(rf_r2)
+    );
+
+    // Immediate generator
+    logic [31:0] imm;
+    immgen u_immgen (
+        .instr(imem_rdata), .imm_sel(imm_sel), .imm(imm)
+    );
+
+    // Compute next PC via control selections only (no '+')
     logic [31:0] br_target, jal_target, jalr_target;
-    assign br_target  = pc_q + imm;
-    assign jal_target = pc_q + imm;
-    assign jalr_target= (rf_r1 + imm) & 32'hFFFF_FFFE;
+    logic [31:0] sum_pc_imm, sum_r1_imm;
+    logic        _cout0, _ovf0, _cout1, _ovf1;
+    add32 u_add_pc_imm(
+        .a(pc_q), .b(imm), .cin(1'b0), .sum(sum_pc_imm), .cout(_cout0), .ovf(_ovf0)
+    );
+    add32 u_add_r1_imm(
+        .a(rf_r1), .b(imm), .cin(1'b0), .sum(sum_r1_imm), .cout(_cout1), .ovf(_ovf1)
+    );
+    assign br_target   = sum_pc_imm;
+    assign jal_target  = sum_pc_imm;
+    assign jalr_target = sum_r1_imm & 32'hFFFF_FFFE;
     always_comb begin
         pc_next = pc_plus4;
         if (take_branch)               pc_next = br_target;
@@ -98,26 +126,6 @@ module singlecycle (
             $display("TRACE JAL @PC=%08x pc_src_jal=%0d", o_pc_debug, pc_src_jal);
         end
     end
-
-    // Stub instances to match requested structure
-    // Register file
-    logic [31:0] rf_r1, rf_r2;
-    logic [31:0] rf_wd;
-    wire [4:0] rs1 = imem_rdata[19:15];
-    wire [4:0] rs2 = imem_rdata[24:20];
-    wire [4:0] rd  = imem_rdata[11:7];
-    regfile u_regfile (
-        .i_clk(i_clk), .i_rst_n(i_rst_n),
-        .i_rs1_addr(rs1), .i_rs2_addr(rs2),
-        .i_rd_addr(rd), .i_rd_wren(rd_wren), .i_rd_data(rf_wd),
-        .o_rs1_data(rf_r1), .o_rs2_data(rf_r2)
-    );
-
-    // Immediate generator
-    logic [31:0] imm;
-    immgen u_immgen (
-        .instr(imem_rdata), .imm_sel(imm_sel), .imm(imm)
-    );
 
     // Branch comparator (stub data path for now)
     logic br_equal, br_less;

@@ -35,7 +35,7 @@ module lsu (
     // 8 KiB RAM: 2048 words mapped at 0x2000..0x3FFF
     logic [31:0] ram [0:2047];
 
-    // Address decoding helpers
+    // Address decoding helpers (bit-slice compares; no arithmetic/range compares)
     logic in_ram, in_ledr, in_ledg, in_sw, in_btn, in_hex, in_lcd;
     assign in_ram  = (i_addr[15:13] == 3'b001) && (i_addr[12] == 1'b0); // 0x2000-0x3FFF
     assign in_ledr = (i_addr[15:4]  == 12'h700); // 0x7000-0x700F
@@ -63,7 +63,7 @@ module lsu (
             o_io_lcd  <= 32'd0;
         end else if (i_we) begin
             if (in_ram) begin
-                ram[i_addr[12:2]] <= i_wdata; // word-aligned
+                ram[i_addr[12:2]] <= i_wdata; // word-aligned within 8KiB window
             end else if (in_ledr) begin
                 o_io_ledr <= i_wdata;
             end else if (in_ledg) begin
@@ -93,7 +93,7 @@ module lsu (
         o_rdata = 32'd0;
         if (i_re) begin
             if (in_ram) begin
-                o_rdata = ram[i_addr[12:2]]; // word-aligned
+                o_rdata = ram[i_addr[12:2]]; // word-aligned within 8KiB window
             end else if (in_sw) begin
                 o_rdata = i_io_sw;
             end else if (in_btn) begin

@@ -10,13 +10,14 @@
 | **ImmGen (I/S/B/U/J)**                  | 00_src/immgen.sv                 | ✅ Pass | All immediates |
 | **Control unit**                        | 00_src/control.sv                | ✅ Pass | Drives alu/immgen/pc_src |
 | **Instruction memory (IMEM)**           | 00_src/imem.sv                   | ✅ Pass | 8 KiB, +HEX override |
-| **Data memory (DMEM)**                  | 00_src/dmem.sv                   | ✅ Pass | 8 KiB, sync wr / comb rd |
+| **Data memory (in LSU)**                | 00_src/lsu.sv                    | ✅ Pass | 8 KiB @0x2000–0x3FFF |
 | **Load/store & MMIO map**               | 00_src/lsu.sv                    | ✅ Pass | RED=0x7000, GREEN=0x7010, SW=0x7800, BTN=0x7810; 7seg/LCD stubs |
-| **Memory timing (wr=clk, rd=comb)**     | dmem.sv, lsu.sv                  | ✅ Pass | Matches spec |
+| **Memory timing (wr=clk, rd=comb)**     | lsu.sv                           | ✅ Pass | Matches spec |
 | **o_insn_vld implemented**              | singlecycle.sv                   | ✅ Pass | TB observes |
 | **No for/generate (guard)**             | 10_sim/check_forbidden.sh        | ✅ Pass | CI/Local guard |
 | **Lint (Verilator)**                    | Makefile                         | ✅ Pass |  |
-| **Sim (Icarus, LED demo)**              | Makefile, 02_test/dump/mem.dump  | ✅ Pass | IMEM_MAIN: +HEX=02_test/dump/mem.dump
+| **Sim (Icarus, LED demo)**              | Makefile, 02_test/dump/mem.dump  | ✅ Pass | [make] Running with timeout 60s
+IMEM_MAIN: +HEX=02_test/dump/mem.dump
 TB_MAIN: starting; expect PC=00000000 at cycle 1
 TB: cycle=0 PC=xxxxxxxx (expect 00000000 at cycle 1)
 TB_MAIN: cycle=0 PC=xxxxxxxx

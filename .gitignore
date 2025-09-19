@@ -12,6 +12,7 @@ sim/
 *.vcd
 *.fst
 *.log
+*.vvp
 *.out
 *.hex
 build/

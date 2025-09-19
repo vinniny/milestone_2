@@ -1,19 +1,26 @@
 RTL := 00_src/add32.sv 00_src/alu.sv 00_src/brc.sv 00_src/control.sv \
-       00_src/dmem.sv 00_src/imem.sv 00_src/immgen.sv 00_src/lsu.sv \
-       00_src/mux_2to1.sv 00_src/mux_3to1.sv \
-       00_src/pc_core.sv 00_src/pc_adder.sv 00_src/pc_debug.sv \
+       00_src/imem.sv 00_src/immgen.sv 00_src/lsu.sv \
+       00_src/pc_core.sv 00_src/pc_adder.sv \
        00_src/regfile.sv 00_src/shifter32.sv 00_src/singlecycle.sv
 TB  := 01_bench/cpu_tb.sv
 TOP := cpu_tb
 BUILD := 10_sim
 BIN := $(BUILD)/simv
 HEX ?= 02_test/dump/mem.dump
+VVPARGS ?=
+TIMEOUT ?= 60
 
 .PHONY: run clean lint
 
 run: | $(BUILD)
 	iverilog -g2012 -Wall -o $(BIN) -s $(TOP) $(RTL) $(TB)
-	vvp $(BIN) +HEX=$(HEX)
+	@# Prefer a wall-clock timeout if available to avoid hangs
+	@if command -v timeout >/dev/null 2>&1; then \
+	  echo "[make] Running with timeout $(TIMEOUT)s"; \
+	  timeout -k 2s $(TIMEOUT)s vvp $(BIN) +HEX=$(HEX) $(VVPARGS); \
+	else \
+	  vvp $(BIN) +HEX=$(HEX) $(VVPARGS); \
+	fi
 
 lint:
 	# Lint only RTL; some TB constructs (delays, forks) require timing opts unsupported by CI verilator

@@ -49,6 +49,15 @@ module cpu_tb;
     ledg_change_age  = -1;
   end
 
+  // Watchdog: hard stop after N cycles (configurable via +TB_MAX_CYCLES, default 200_000)
+  initial begin : tb_watchdog_cycles
+    integer tb_max_cycles;
+    if (!$value$plusargs("TB_MAX_CYCLES=%d", tb_max_cycles)) tb_max_cycles = 200_000;
+    repeat (tb_max_cycles) @(posedge clk);
+    $display("TB TIMEOUT: reached %0d cycles without finishing. Stopping.", tb_max_cycles);
+    $finish;
+  end
+
   // Single clocked process controls everything
   always @(posedge clk) begin
     cycles <= cycles + 1;
