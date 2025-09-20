@@ -60,6 +60,7 @@ module singlecycle (
     logic [2:0] imm_sel;
     // Dummy sink for optional control output
     logic unused_alu_src_imm;
+    logic rs1_zero_sel;
     control u_ctrl(
         .instr(imem_rdata),
         .alu_op(alu_op),
@@ -67,7 +68,7 @@ module singlecycle (
         .imm_sel(imm_sel),
         .pc_src_branch(pc_src_branch), .pc_src_jal(pc_src_jal), .pc_src_jalr(pc_src_jalr),
         .opa_sel(opa_sel), .opb_sel(opb_sel), .br_un(br_un), .wb_sel(wb_sel),
-        .o_insn_vld(o_insn_vld), .alu_src_b_is_imm(unused_alu_src_imm)
+        .o_insn_vld(o_insn_vld), .alu_src_b_is_imm(unused_alu_src_imm), .rs1_zero_sel(rs1_zero_sel)
     );
 
     // Local JAL detect for fail-safe next_pc selection during bring-up
@@ -77,13 +78,18 @@ module singlecycle (
     // Register file
     logic [31:0] rf_r1, rf_r2;
     logic [31:0] rf_wd;
-    wire [4:0] rs1 = imem_rdata[19:15];
-    wire [4:0] rs2 = imem_rdata[24:20];
-    wire [4:0] rd  = imem_rdata[11:7];
+    logic [4:0] rs1_addr_raw;
+    logic [4:0] rs1_addr;
+    logic [4:0] rs2_addr;
+    logic [4:0] rd_addr;
+    assign rs1_addr_raw = imem_rdata[19:15];
+    assign rs2_addr     = imem_rdata[24:20];
+    assign rd_addr      = imem_rdata[11:7];
+    assign rs1_addr     = rs1_zero_sel ? 5'd0 : rs1_addr_raw;
     regfile u_regfile (
         .i_clk(i_clk), .i_rst_n(i_rst_n),
-        .i_rs1_addr(rs1), .i_rs2_addr(rs2),
-        .i_rd_addr(rd), .i_rd_wren(rd_wren), .i_rd_data(rf_wd),
+        .i_rs1_addr(rs1_addr), .i_rs2_addr(rs2_addr),
+        .i_rd_addr(rd_addr), .i_rd_wren(rd_wren), .i_rd_data(rf_wd),
         .o_rs1_data(rf_r1), .o_rs2_data(rf_r2)
     );
 
