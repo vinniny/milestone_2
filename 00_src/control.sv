@@ -47,7 +47,10 @@ module control(
 
     end else if (op == 7'b1100011) begin
       // BRANCH
-      pc_src_branch=1; imm_sel=3'd2; br_un=f3[2]; o_insn_vld=1;
+      pc_src_branch = 1'b1;
+      imm_sel       = 3'd2;
+      br_un         = ~f3[1]; // 1 selects signed compares (BLT/BGE), 0 selects unsigned (BLTU/BGEU)
+      o_insn_vld    = 1'b1;
 
     end else if (op == 7'b0000011) begin
       // LOAD

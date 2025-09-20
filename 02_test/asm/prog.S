@@ -1,29 +1,72 @@
 .section .text
 .globl _start
 _start:
-    # x1 = LEDR, x2 = LEDG base addresses
-    lui x1, 0x70000>>12     # 0x7000
-    addi x1, x1, 0          # 0x7000
-    addi x2, x1, 0x10       # 0x7010
+    # Directed branch coverage for signed vs unsigned comparisons
+    li    x5, -1
+    li    x6, 1
+    li    x7, 0
 
-    # Write patterns
-    lui x3, 0xDEADB>>12
-    addi x3, x3, 0xEEF
-    sw  x3, 0(x1)           # RED LEDs
-    lui x4, 0xCAFEB>>12
-    addi x4, x4, 0xABE
-    sw  x4, 0(x2)           # GREEN LEDs
-
-    # Read switches at 0x7800
-    lui x5, 0x78000>>12     # 0x7800
-    lw  x6, 0(x5)
-
-    # If switches non-zero, branch to loop
-    beq x6, x0, 1f
-    j   2f
+    # Signed BLT should branch (-1 < 1)
+    blt   x5, x6, 1f
+    j     fail
 1:
-    j   3f
+    addi  x7, x7, 1
+
+    # Signed BGE should not branch (-1 >= 1 is false)
+    bge   x5, x6, fail
+    addi  x7, x7, 1
+
+    # Unsigned BLTU should not branch (0xFFFFFFFF < 1 is false)
+    bltu  x5, x6, fail
+    addi  x7, x7, 1
+
+    # Unsigned BGEU should branch (0xFFFFFFFF >= 1)
+    bgeu  x5, x6, 2f
+    j     fail
 2:
-    j   3f
+    addi  x7, x7, 1
+
+    # Flip operand signs to exercise the opposite polarity
+    li    x5, 1
+    li    x6, -1
+
+    # Signed BLT should not branch (1 < -1 is false)
+    blt   x5, x6, fail
+    addi  x7, x7, 1
+
+    # Signed BGE should branch (1 >= -1)
+    bge   x5, x6, 3f
+    j     fail
 3:
-    j   3b                 # tight loop here
+    addi  x7, x7, 1
+
+    # Unsigned BLTU should branch (1 < 0xFFFFFFFF)
+    bltu  x5, x6, 4f
+    j     fail
+4:
+    addi  x7, x7, 1
+
+    # Unsigned BGEU should not branch (1 >= 0xFFFFFFFF is false)
+    bgeu  x5, x6, fail
+    addi  x7, x7, 1
+
+    # All eight branch scenarios should have incremented x7
+    addi  x8, x0, 8
+    bne   x7, x8, fail
+
+pass:
+    # Write PASS pattern to LEDs (RED=1, GREEN=2)
+    lui   x1, 0x7000>>12    # Adds PC (0x6C) via ALU path
+    addi  x1, x1, -0x6C     # Back out PC contribution -> 0x00007000
+    addi  x2, x1, 0x10      # 0x7010
+
+    addi  x3, x0, 1
+    sw    x3, 0(x1)         # RED LEDs = 1
+
+    addi  x3, x0, 2
+    sw    x3, 0(x2)         # GREEN LEDs = 2
+
+    j     pass
+
+fail:
+    j     fail
