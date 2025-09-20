@@ -56,8 +56,7 @@ _start:
 
 pass:
     # Write PASS pattern to LEDs (RED=1, GREEN=2)
-    lui   x1, 0x7000>>12    # Adds PC (0x6C) via ALU path
-    addi  x1, x1, -0x6C     # Back out PC contribution -> 0x00007000
+    lui   x1, 0x7000>>12    # Base 0x00007000
     addi  x2, x1, 0x10      # 0x7010
 
     addi  x3, x0, 1
@@ -65,6 +64,17 @@ pass:
 
     addi  x3, x0, 2
     sw    x3, 0(x2)         # GREEN LEDs = 2
+
+    # Drive HEX displays via 0x7020/0x7024 words
+    addi  x4, x1, 0x20      # 0x7020
+    lui   x5, 0x8040
+    addi  x5, x5, 0x201     # HEX0-HEX3: unique 7-bit fields
+    sw    x5, 0(x4)
+
+    addi  x4, x1, 0x24      # 0x7024
+    lui   x5, 0x3F402
+    addi  x5, x5, 0x10      # HEX4-HEX7: unique 7-bit fields
+    sw    x5, 0(x4)
 
     j     pass
 
