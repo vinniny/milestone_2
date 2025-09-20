@@ -9,7 +9,8 @@ module control(
   output logic        br_un,
   output logic [1:0]  wb_sel,          // 00=ALU, 01=Load, 10=PC+4
   output logic        o_insn_vld,
-  output logic        alu_src_b_is_imm // compatibility (mirrors opb_sel==imm)
+  output logic        alu_src_b_is_imm, // compatibility (mirrors opb_sel==imm)
+  output logic        rs1_zero_sel      // force rs1 read address to x0
 );
   // locals for decode fields
   logic [6:0] op;
@@ -23,6 +24,7 @@ module control(
     opa_sel=0; opb_sel=2'b00; br_un=0; wb_sel=2'b00; alu_op=4'h0;
     o_insn_vld=1'b0;
     alu_src_b_is_imm = 1'b0;
+    rs1_zero_sel = 1'b0;
 
     op = instr[6:0];
     f3 = instr[14:12];
@@ -92,8 +94,8 @@ module control(
       reg_we=1; imm_sel=3'd3; opa_sel=1; opb_sel=2'b01; alu_op=4'h0; o_insn_vld=1; alu_src_b_is_imm=1;
 
     end else if (op == 7'b0110111) begin
-      // LUI (pass-through via ALU)
-      reg_we=1; imm_sel=3'd3; opa_sel=1; opb_sel=2'b01; alu_op=4'h0; o_insn_vld=1; alu_src_b_is_imm=1;
+      // LUI uses zero + U-imm
+      reg_we=1; imm_sel=3'd3; opa_sel=0; opb_sel=2'b01; alu_op=4'h0; o_insn_vld=1; alu_src_b_is_imm=1; rs1_zero_sel=1;
     end
   end
 endmodule
