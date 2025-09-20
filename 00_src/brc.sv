@@ -3,7 +3,7 @@
 module brc(
   input  logic [31:0] i_rs1_data,
   input  logic [31:0] i_rs2_data,
-  input  logic        i_br_un,     // 1=signed compare, 0=unsigned compare
+  input  logic        i_br_un,     // 1 selects signed compare (BLT/BGE), 0 selects unsigned (BLTU/BGEU)
   output logic        o_br_less,
   output logic        o_br_equal
 );
