@@ -28,7 +28,11 @@ module imem (
     logic [10:0] word_idx;
     assign word_idx = addr[12:2];
     always_comb begin
-        if ({21'd0,word_idx} < MEM_WORDS) rdata = mem[word_idx];
-        else                      rdata = 32'h00000013; // NOP if out-of-range
+        if (addr[31:13] == 19'd0) begin
+            if ({21'd0, word_idx} < MEM_WORDS) rdata = mem[word_idx];
+            else                      rdata = 32'h0000_0013; // NOP if index overruns ROM depth
+        end else begin
+            rdata = 32'h0000_0013; // NOP if address above 0x0000_1FFF
+        end
     end
 endmodule

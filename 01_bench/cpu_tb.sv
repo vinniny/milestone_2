@@ -24,6 +24,14 @@ module cpu_tb;
     .i_io_sw(sw), .i_io_btn(btn)
   );
 
+  // Standalone ROM probe to exercise out-of-range fetch guard logic.
+  logic [31:0] imem_probe_addr = 32'h0000_2000;
+  logic [31:0] imem_probe_rdata;
+  imem imem_range_probe(
+    .addr (imem_probe_addr),
+    .rdata(imem_probe_rdata)
+  );
+
   // Use a clocked counter for reset release and stop condition.
   integer cycles = 0;
   logic   seen_vld = 1'b0;
@@ -56,6 +64,20 @@ module cpu_tb;
     repeat (tb_max_cycles) @(posedge clk);
     $display("TB TIMEOUT: reached %0d cycles without finishing. Stopping.", tb_max_cycles);
     $finish;
+  end
+
+  // Quick ROM range probe: 0x0000_2000 should map to a NOP rather than mem[0].
+  initial begin : imem_out_of_range_nop_check
+    logic [31:0] mem0_value;
+    #1;
+    mem0_value = dut.u_imem.mem[0];
+    if (imem_probe_rdata !== 32'h0000_0013) begin
+      $error("IMEM range check failed: addr=0x00002000 yielded %08x (mem[0]=%08x)", imem_probe_rdata, mem0_value);
+    end else if (imem_probe_rdata === mem0_value) begin
+      $display("IMEM range check: mem[0] also 0x00000013; ROM still returns NOP at 0x00002000");
+    end else begin
+      $display("IMEM range check passed: 0x00002000 returned NOP (mem[0]=%08x)", mem0_value);
+    end
   end
 
   // Single clocked process controls everything
